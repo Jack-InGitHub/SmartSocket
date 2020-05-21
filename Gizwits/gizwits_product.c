@@ -19,6 +19,7 @@
 #include "hal_key.h"
 #include "gizwits_product.h"
 #include "common.h"
+#include "main.h"
 
 static uint32_t timerMsCount;
 uint8_t aRxBuffer;
@@ -81,10 +82,12 @@ int8_t gizwitsEventProcess(eventInfo_t *info, uint8_t *gizdata, uint32_t len)
             if(0x01 == currentDataPoint.valueSocket1)
             {
                 //user handle
+                HAL_GPIO_WritePin(Relay1_GPIO_Port, Relay1_Pin, GPIO_PIN_SET);
             }
             else
             {
                 //user handle
+                HAL_GPIO_WritePin(Relay1_GPIO_Port, Relay1_Pin, GPIO_PIN_RESET);
             }
             break;
         case EVENT_Socket2:
@@ -93,10 +96,12 @@ int8_t gizwitsEventProcess(eventInfo_t *info, uint8_t *gizdata, uint32_t len)
             if(0x01 == currentDataPoint.valueSocket2)
             {
                 //user handle
+                HAL_GPIO_WritePin(Relay2_GPIO_Port, Relay2_Pin, GPIO_PIN_SET);
             }
             else
             {
                 //user handle
+                HAL_GPIO_WritePin(Relay2_GPIO_Port, Relay2_Pin, GPIO_PIN_RESET);
             }
             break;
 
@@ -140,15 +145,35 @@ int8_t gizwitsEventProcess(eventInfo_t *info, uint8_t *gizdata, uint32_t len)
         case WIFI_STATION:
             break;
         case WIFI_CON_ROUTER:
-
+            GIZWITS_LOG("WIFI_CON_ROUTER ...\n");
             break;
         case WIFI_DISCON_ROUTER:
-
+            GIZWITS_LOG("WIFI_DISCON_ROUTER ...\n");
             break;
         case WIFI_CON_M2M:
-
+            GIZWITS_LOG("WIFI_CON_M2M ...\n");
             break;
         case WIFI_DISCON_M2M:
+            GIZWITS_LOG("WIFI_DISCON_M2M ...\n");
+            break;
+        case WIFI_CON_APP:
+            GIZWITS_LOG("WIFI_CON_APP ...\n");
+            {
+                uint8_t temp=0;
+                uint8_t humi=0;
+                
+                if( DHT11_Read_Data(&temp, &humi) != 0 )
+                {
+                    GIZWITS_LOG("DHT11 : Err\n");
+                }
+                GIZWITS_LOG("DHT11 : %dC %d%% \n",temp,humi);
+                
+                currentDataPoint.valueRH = humi;
+                currentDataPoint.valueTemperature = temp;
+            }
+            break;
+        case WIFI_DISCON_APP:
+            GIZWITS_LOG("WIFI_DISCON_APP ...\n");
             break;
         case WIFI_RSSI:
             GIZWITS_LOG("RSSI %d\n", wifiData->rssi);
@@ -159,6 +184,21 @@ int8_t gizwitsEventProcess(eventInfo_t *info, uint8_t *gizdata, uint32_t len)
             break;
         case WIFI_NTP:
             GIZWITS_LOG("WIFI_NTP : [%d-%d-%d %02d:%02d:%02d][%d] \n",ptime->year,ptime->month,ptime->day,ptime->hour,ptime->minute,ptime->second,ptime->ntp);
+            {
+                extern RTC_HandleTypeDef hrtc;
+                RTC_TimeTypeDef Time;
+                RTC_DateTypeDef Data;
+                
+                Data.Year = ptime->year%100;
+                Data.Month = ptime->month;
+                Data.Date = ptime->day;
+                HAL_RTC_SetDate(&hrtc, &Data, RTC_FORMAT_BIN);
+                
+                Time.Hours = ptime->hour;
+                Time.Minutes = ptime->minute;
+                Time.Seconds = ptime->second;
+                HAL_RTC_SetTime(&hrtc, &Time, RTC_FORMAT_BIN);
+            }
             break;
         case MODULE_INFO:
             GIZWITS_LOG("MODULE INFO ...\n");

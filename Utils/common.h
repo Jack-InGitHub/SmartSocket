@@ -136,4 +136,6 @@ int8_t checkStringIsZero(const char *data);
 }
 #endif
 
+#include "dht11.h"
+
 #endif
